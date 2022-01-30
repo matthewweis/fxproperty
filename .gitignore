@@ -1,0 +1,46 @@
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
+*.stackdump
+
+# Linux
+*~
+.Trash-*
+.fuse_hidden*
+.nfs*
+
+# Packages
+*.zip
+*.rar
+*.nar
+*.tar.gz
+
+# Java
+*.class
+*.log
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+
+# Maven
+log/
+target/
+
+# Intellij
+.idea/
+*.iml
+*.iws
+
+# Eclipse
+.settings/
+.classpath
+.project
+
+# Visual Studio Code
+.vscode/
+.history/
+*.vsix
