@@ -9,7 +9,7 @@ class IntegerPropertyTest {
 }
 ```
 
-#### Transformed
+### Transformed
 ```java
 class IntegerPropertyTest {
     @FxProperty
