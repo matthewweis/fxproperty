@@ -1,0 +1,29 @@
+
+
+Generic types test
+Bounded generic types test (? extends T and ? super T)
+Nested generics tests (including with bounds)
+
+Raw types test (currently raw types throw error!)
+
+Many fields test.
+
+Field-name-collides-with-method-name test.
+
+Already existing method test (should not generate if method already exists. Just emit warning?)
+
+Visibility tests
+
+Mutually recursive types test
+
+Inner class test.
+
+Many overrides test (especially with overriding field tightening type bound but also being hidden)
+
+Implement strategies. Then write strategy tests.
+
+Target field modifiers test
+  - test public, protected, default, private visibilities on field.
+  - test all others: final, transient, volatile, synchronized.
+    - todo error on synchronized? Or inherit modifiers? Properties should always be accessed on gui thread anyways...
+    - todo support static? It wouldn't be a (javafx) POJO then, would it? Maybe a global property across controllers.
