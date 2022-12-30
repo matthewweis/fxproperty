@@ -12,7 +12,6 @@ import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 import org.fxproperty.api.Visibility;
 import org.fxproperty.api.FxProperty;
-import org.fxproperty.api.*;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -26,7 +25,9 @@ class PropertyTreeTranslator extends TreeTranslator {
 
     private final Symbol.ClassSymbol property;
     private final Symbol.ClassSymbol readOnlyProperty;
+    @SuppressWarnings("FieldCanBeLocal")
     private final Symbol.ClassSymbol observableValue;
+    @SuppressWarnings("FieldCanBeLocal")
     private final Symbol.ClassSymbol writeableValue;
 
     private final Name getValueMethodName;
@@ -40,9 +41,7 @@ class PropertyTreeTranslator extends TreeTranslator {
     private final Names names;
     private final TreeMaker treeMaker;
     private final Symtab symtab;
-
     private final TransTypes transTypes;
-
 
     /**
      * Originally named "PendingFxPropertyFields."
@@ -65,13 +64,9 @@ class PropertyTreeTranslator extends TreeTranslator {
         this.setValueMethodName = elementUtils.getName("setValue");
         this.getMethodName = elementUtils.getName("get");
         this.setMethodName = elementUtils.getName("set");
-//        this.getValueMethodName = elementUtils.getName("get");
-//        this.setValueMethodName = elementUtils.getName("set");
         this.symtab = symtab;
         this.transTypes = transTypes;
-//        pendingFields = new ArrayDeque<>();
-        pendingFields = new LinkedList<>();
-//        pendingFields = new ConcurrentLinkedDeque<>();
+        pendingFields = new LinkedList<>(); // todo: CONSIDER ArrayDequeue OR ConcurrentLinkedDequeue
     }
 
 
@@ -101,7 +96,7 @@ class PropertyTreeTranslator extends TreeTranslator {
                 .forEach(annotatedField -> {
                     final FxProperty fxProperty = Objects.requireNonNull(
                             annotatedField.sym.getAnnotation(FxProperty.class),
-                            "FxProperty internal error: attempted to process unannotated tree.");
+                            "INTERNAL ERROR: Attempted to process unannotated tree.");
 
                     final boolean isProperty = property.isInheritedIn(annotatedField.sym, types);
                     final boolean isReadOnlyProperty = isProperty || readOnlyProperty.isInheritedIn(annotatedField.sym, types);
@@ -119,7 +114,7 @@ class PropertyTreeTranslator extends TreeTranslator {
                         final Optional<JCTree.JCMethodDecl> gm = createGetter(fxProperty, type, fieldName, field);
                         final Optional<JCTree.JCMethodDecl> pm = createPropertyGetter(fxProperty, type, fieldName, field);
                         final Optional<JCTree.JCMethodDecl> sm = conditionalOptional(isProperty, () -> createSetter(tree, fxProperty, type, fieldName, field));
-                        return PropertyTreeTranslator.<JCTree.JCMethodDecl>streamOptionals(gm, pm, sm);
+                        return Stream.of(gm, pm, sm).flatMap(Optional::stream);
                     });
 
                     final Stream<? extends JCTree> defs = Stream.concat(preexistingMembers, generatedMembers);
@@ -145,12 +140,8 @@ class PropertyTreeTranslator extends TreeTranslator {
     private Optional<JCTree.JCMethodDecl> createGetter(FxProperty fxProperty, Type type, Symbol fieldName, JCTree.JCExpression field) {
         // todo check for preexisting method and return empty stream if one exists
         //   - consider equivalent -Werror flag for nominal collision (maybe -Wnominal)
-
-//        return explodeMethods(type)
-//                .filter(s -> s.enclClass().equals(observableValue))
-//                .filter(s -> s.getSimpleName().equals(getValueMethodName))
         return findGetter(type)
-                .map(Symbol::baseSymbol) // puts the parens "()" back on the end todo doesn't seem to matter in all cases?
+                .map(Symbol::baseSymbol) // puts the parens "()" back on the end
                 // todo instead handle case of multiple "correct" methods with varying type specificity
                 .map(fieldGetValue -> {
                     final Type genericType = types.erasureRecursive(types.boxedTypeOrType(fieldGetValue.asType().getReturnType()));
@@ -169,12 +160,10 @@ class PropertyTreeTranslator extends TreeTranslator {
 
     private Optional<JCTree.JCMethodDecl> createSetter(JCTree.JCClassDecl tree, FxProperty fxProperty, Type type, Symbol fieldName, JCTree.JCExpression field) {
         return findSetter(type)
-                .map(Symbol::baseSymbol) // todo: needed? OpenJDK implementation is identity function. Eclipse needs different library regardless?
+                .map(Symbol::baseSymbol) // puts the parens "()" back on the end
                 .map(fieldSetValue -> {
-                    // todo pass this?
-                    // SHOULD BE OBSERVABLELIST<Object> FOR ACCEPTED TYPE!
                     final Type genericType = types.erasureRecursive(types.boxedTypeOrType(fieldSetValue.asType().getParameterTypes().head));
-                    final JCTree.JCVariableDecl setterParam = transTypes.translate(treeMaker.Param(names.fromString("value"), genericType, tree.sym)); // maybe node.package + node.simpleName ?
+                    final JCTree.JCVariableDecl setterParam = transTypes.translate(treeMaker.Param(names.fromString("value"), genericType, tree.sym));
                     final JCTree.JCExpression fieldSelector = transTypes.translate(treeMaker.Select(field, fieldSetValue));
                     final List<JCTree.JCExpression> setterArgs = List.of(transTypes.translate(treeMaker.Ident(setterParam)));
                     final JCTree.JCExpressionStatement setterExecutor = treeMaker.Exec(treeMaker.App(fieldSelector, setterArgs));
@@ -213,8 +202,7 @@ class PropertyTreeTranslator extends TreeTranslator {
                     final Name qualifiedName = enclosed.getQualifiedName();
                     return qualifiedName.equals(getValueMethodName) || qualifiedName.equals(getMethodName);
                 })
-                .filter(enclosed -> enclosed.asType().getParameterTypes().head == null) // no params
-//                .filter(enclosed -> types.isReifiable(enclosed.asType())) // no generics
+                .filter(enclosed -> enclosed.asType().getParameterTypes().head == null) // no params?
                 .reduce((s1, s2) -> {
                     final Type s1RetType = types.erasureRecursive(
                             Objects.requireNonNull(s1.asType().getReturnType(),
@@ -223,53 +211,30 @@ class PropertyTreeTranslator extends TreeTranslator {
                             Objects.requireNonNull(s2.asType().getReturnType(),
                             "INTERNAL ERROR: Getter must have return type."));
 
-                    // todo just always use boxed for now?s
-
                     final boolean cannotReify1 = !types.isReifiable(s1RetType);
                     final boolean cannotReify2 = !types.isReifiable(s2RetType);
                     if (cannotReify1 && cannotReify2) {
-                        // todo
-                        System.err.println("hit cannotReify1 && cannotReify2 in findGetter()");
+                        System.err.println("INTERNAL ERROR: Hit cannotReify1 && cannotReify2 in findGetter().");
                     } else if (cannotReify1 ^ cannotReify2) {
                         return cannotReify1 ? s2 : s1;
                     }
-//                    if (!types.isReifiable(s1RetType))
-//                        return s2;
-//                    if (!types.isReifiable(s2RetType))
-//                        return s1;
-//                    if (s1ArgType.isPrimitive()) return s1;
-//                    if (s2ArgType.isPrimitive()) return s2;
-                    // todo ensure types.
 
+                    // handle specialized properties for primitive types
                     final boolean sameType = types.isSameType(s1RetType, s2RetType);
-//                    final boolean sameType = typeUtils.isSameType(types.erasureRecursive(s1RetType), types.erasureRecursive(s2RetType));
                     final boolean sameWhenBoxed = types.isSameType(types.boxedTypeOrType(s1RetType), types.boxedTypeOrType(s2RetType));
                     if (!sameType && sameWhenBoxed) {
-                        // if we have primitive boxed and unboxed versions, re
                         if (s1RetType.isPrimitive()) {
                             return s2;
                         } else if (s2RetType.isPrimitive()) {
                             return s1;
                         } else {
-                            throw new IllegalStateException("INTERNAL ERROR: at least one type should be primitive");
+                            throw new IllegalStateException("INTERNAL ERROR: At least one type should be primitive.");
                         }
                     }
 
                     if (types.isAssignable(s1RetType, s2RetType)) return s1;
                     if (types.isAssignable(s2RetType, s1RetType)) return s2;
-                    throw new IllegalStateException("Incompatible types");
-
-//                    //s1.asType().getParameterTypes().head.isPrimitive()
-//                    //s1.asType().getParameterTypes().head.getTag()
-//                    final Symbol.MethodSymbol m1 = (Symbol.MethodSymbol) s1;
-//                    final Symbol.MethodSymbol m2 = (Symbol.MethodSymbol) s2;
-//                    final boolean dir1 = types.isAssignable(m1.params().head.type, m2.params.head.type);
-//                    final boolean dir2 = types.isAssignable(m2.params().head.type, m1.params.head.type);
-//                    if (dir1 && !dir2) return m2;
-//                    if (!dir1 && dir2) return m1;
-//                    return m1; // then they are equal?
-////                    return types.isAssignable(m1.params().head.type, m2.params.head.type) ? s2 : s1;
-////                    return types.isSuperType(s1.type, s2.type) ? s2 : s1;
+                    throw new IllegalStateException("INTERNAL ERROR: Incompatible types.");
                 });
     }
 
@@ -291,14 +256,10 @@ class PropertyTreeTranslator extends TreeTranslator {
                     final Type s2ArgType = types.erasureRecursive(Objects.requireNonNull(s2.asType().getParameterTypes().head,
                             "INTERNAL ERROR: Type params should be checked in prior filter."));
 
-//                    if (s1ArgType.isPrimitive()) return s1;
-//                    if (s2ArgType.isPrimitive()) return s2;
-                    // todo ensure types.
                     final boolean cannotReify1 = !types.isReifiable(s1ArgType);
                     final boolean cannotReify2 = !types.isReifiable(s2ArgType);
                     if (cannotReify1 && cannotReify2) {
-                        // todos
-                        System.err.println("hit cannotReify1 && cannotReify2 in findSetter()");
+                        System.err.println("INTERNAL ERROR: Hit cannotReify1 && cannotReify2 in findSetter()");
                     } else if (cannotReify1 ^ cannotReify2) {
                         return cannotReify1 ? s2 : s1;
                     }
@@ -306,32 +267,19 @@ class PropertyTreeTranslator extends TreeTranslator {
                     final boolean sameType = types.isSameType(s1ArgType, s2ArgType);
                     final boolean sameWhenBoxed = types.isSameType(types.boxedTypeOrType(s1ArgType), types.boxedTypeOrType(s2ArgType));
                     if (!sameType && sameWhenBoxed) {
-                        // if we have primitive boxed and unboxed versions, re
+                        // if we have primitive boxed and unboxed versions
                         if (s1ArgType.isPrimitive()) {
                             return s2;
                         } else if (s2ArgType.isPrimitive()) {
                             return s1;
                         } else {
-                            throw new IllegalStateException("INTERNAL ERROR: at least one type should be primitive");
+                            throw new IllegalStateException("INTERNAL ERROR: At least one type should be primitive");
                         }
                     }
 
                     if (types.isAssignable(s1ArgType, s2ArgType)) return s1;
                     if (types.isAssignable(s2ArgType, s1ArgType)) return s2;
-                    throw new IllegalStateException("Incompatible types");
-
-
-//                    //s1.asType().getParameterTypes().head.isPrimitive()
-//                    //s1.asType().getParameterTypes().head.getTag()
-//                    final Symbol.MethodSymbol m1 = (Symbol.MethodSymbol) s1;
-//                    final Symbol.MethodSymbol m2 = (Symbol.MethodSymbol) s2;
-//                    final boolean dir1 = types.isAssignable(m1.params().head.type, m2.params.head.type);
-//                    final boolean dir2 = types.isAssignable(m2.params().head.type, m1.params.head.type);
-//                    if (dir1 && !dir2) return m2;
-//                    if (!dir1 && dir2) return m1;
-//                    return m1; // then they are equal?
-////                    return types.isAssignable(m1.params().head.type, m2.params.head.type) ? s2 : s1;
-////                    return types.isSuperType(s1.type, s2.type) ? s2 : s1;
+                    throw new IllegalStateException("INTERNAL ERROR: Incompatible types.");
                 });
     }
 
@@ -346,13 +294,8 @@ class PropertyTreeTranslator extends TreeTranslator {
             case PRIVATE:
                 return Flags.PRIVATE;
             default:
-                throw new IllegalStateException("FxProperty internal error: non-exhaustive pattern match.");
+                throw new IllegalStateException("INTERNAL ERROR: Non-exhaustive pattern match.");
         }
-    }
-
-    @SafeVarargs
-    private static <T> Stream<? extends T> streamOptionals(Optional<? extends T>... optionals) {
-        return Stream.of(optionals).flatMap(Optional::stream);
     }
 
     private static <T> Stream<T> conditionalStream(boolean condition, Supplier<Stream<T>> supplier) {

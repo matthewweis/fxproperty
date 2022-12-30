@@ -9,7 +9,7 @@ public class TechnologyCompatibilityKitTests {
 
     @Test
     public void executionPlanMatchesMavenConfiguration() {
-        Assertions.assertEquals("/tests.csv", TechnologyCompatibilityKit.EXECUTION_PLAN);
+        assertEquals("/tests.csv", TechnologyCompatibilityKit.EXECUTION_PLAN);
     }
 
     @Test

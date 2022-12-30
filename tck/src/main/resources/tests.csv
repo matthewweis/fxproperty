@@ -15,6 +15,7 @@ MapPropertyTest.java
 ObjectPropertyBaseTest.java
 ObjectPropertyTest.java
 PropertyTest.java
+RawPropertyTest.java
 ReadOnlyBooleanPropertyTest.java
 ReadOnlyBooleanWrapperTest.java
 ReadOnlyDoublePropertyTest.java

@@ -16,9 +16,7 @@ import com.sun.tools.javac.util.Names;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
-import java.util.Arrays;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 // use annotation processor to collect symbols, then use them during next phase
 @SupportedAnnotationTypes("*") // see todo in getSupportedAnnotationTypes() method

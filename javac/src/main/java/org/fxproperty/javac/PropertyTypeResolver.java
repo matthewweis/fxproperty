@@ -37,8 +37,15 @@ class PropertyTypeResolver extends SimpleTypeVisitor9<TypeMirror, TypeMirror> {
 
         if (isProperty || isReadOnlyProperty) {
             if (t.getTypeArguments().isEmpty()) {
-                // todo this occurs when generic-parameterized classes are used with rawtypes. So need to default to Object
-                throw new IllegalStateException("FxProperty internal error: expected property to have type args.");
+                // occurs when generic-parameterized classes are used with rawtypes.
+
+                // option 1: convert rawtypes to Object
+                return elementUtils.getTypeElement("java.lang.Object").asType();
+
+                // option 2: throw error
+                // throw new IllegalStateException("FxProperty internal error: expected property to have type args.");
+
+                // option 3: generate properties with rawtypes
             }
             return t.getTypeArguments().get(0);
         } else {

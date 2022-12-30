@@ -35,11 +35,11 @@ class PropertyElementResolver extends SimpleElementVisitor9<TypeMirror, TypeMirr
 
     @Override
     public int hashCode() {
-        throw new UnsupportedOperationException("PropertyElementResolver cannot create a hash code.");
+        throw new UnsupportedOperationException("INTERNAL ERROR: PropertyElementResolver cannot create a hash code.");
     }
 
     @Override
     public boolean equals(Object obj) {
-        throw new UnsupportedOperationException("PropertyElementResolver cannot test equality.");
+        throw new UnsupportedOperationException("INTERNAL ERROR: PropertyElementResolver cannot test equality.");
     }
 }
